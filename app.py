@@ -26,7 +26,8 @@ content = {
         "rewrite_prompt": "Great! Now rewrite that experience following the ATS format (Action Verb + Task Description + Quantification):",
         "feedback": {
             "good": "Excellent! You've nailed the ATS format. Let's try another one to reinforce your learning.",
-            "needs_work": "Not quite there. Your response should include a strong action verb, a clear task description, and quantification (e.g., numbers or percentages). Here's a suggestion: try starting with an action like 'Managed' or 'Developed' and add a metric like 'by 20%'. Please try again."
+            "needs_work": "Not quite there. Your response should include a strong action verb, a clear task description, and quantification (e.g., numbers or percentages). Here's a suggestion: try starting with an action like 'Managed' or 'Developed' and add a metric like 'by 20%'. Please try again.",
+            "invalid_input": "Hmm, that doesn't seem like a valid work experience. For example, you could write something like 'I worked on a project team.' Could you try again with a sentence about your work experience?"
         },
         "continue_prompt": "Would you like to try another one?",
         "farewell": "You're doing great! With 2-3 more practice sessions, you'll master ATS-friendly resume writing. Goodbye and good luck with your job search!",
@@ -45,7 +46,8 @@ content = {
         "rewrite_prompt": "Bagus! Sekarang tulis ulang pengalaman itu dengan mengikuti format ATS (Kata Kerja Aksi + Deskripsi Tugas + Kuantifikasi):",
         "feedback": {
             "good": "Luar biasa! Anda telah menguasai format ATS. Mari mencoba yang lain untuk memperkuat pembelajaran Anda.",
-            "needs_work": "Belum cukup. Respons Anda harus mencakup kata kerja aksi yang kuat, deskripsi tugas yang jelas, dan kuantifikasi (misalnya, angka atau persentase). Berikut saran: coba mulai dengan aksi seperti 'Mengelola' atau 'Mengembangkan' dan tambahkan metrik seperti 'sebesar 20%'. Silakan coba lagi."
+            "needs_work": "Belum cukup. Respons Anda harus mencakup kata kerja aksi yang kuat, deskripsi tugas yang jelas, dan kuantifikasi (misalnya, angka atau persentase). Berikut saran: coba mulai dengan aksi seperti 'Mengelola' atau 'Mengembangkan' dan tambahkan metrik seperti 'sebesar 20%'. Silakan coba lagi.",
+            "invalid_input": "Hmm, sepertinya itu bukan pengalaman kerja yang valid. Sebagai contoh, Anda bisa menulis seperti 'Saya bekerja di tim proyek.' Bisakah Anda coba lagi dengan kalimat tentang pengalaman kerja Anda?"
         },
         "continue_prompt": "Apakah Anda ingin mencoba yang lain?",
         "farewell": "Anda melakukannya dengan baik! Dengan 2-3 sesi latihan lagi, Anda akan menguasai penulisan resume yang ramah ATS. Selamat tinggal dan semoga sukses dengan pencarian kerja Anda!",
@@ -53,10 +55,11 @@ content = {
     }
 }
 
-# Rule-based ATS format check
+# Rule-based ATS format check with improved validation
 def analyze_ats_format(text, language):
-    if not text or len(text) < 10:
-        return False, content[language]["feedback"]["needs_work"]
+    # Check for invalid or nonsense input
+    if not text or len(text.strip()) < 5 or not re.match(r'^[a-zA-Z\s,.]+$', text):
+        return False, content[language]["feedback"]["invalid_input"]
     
     # Check for action verb (starts with a strong verb)
     action_verbs = ["managed", "developed", "implemented", "led", "designed", "improved", "analyzed"]
@@ -118,9 +121,13 @@ if user_input:
         st.session_state.state["current_step"] = 4
     
     elif st.session_state.state["current_step"] == 4:
-        st.session_state.state["last_user_input"] = user_input
-        st.session_state.state["current_step"] = 5
-        response = content[st.session_state.state["language"]]["rewrite_prompt"]
+        # Validate input before proceeding
+        if not user_input or len(user_input.strip()) < 5 or not re.match(r'^[a-zA-Z\s,.]+$', user_input):
+            response = content[st.session_state.state["language"]]["feedback"]["invalid_input"]
+        else:
+            st.session_state.state["last_user_input"] = user_input
+            st.session_state.state["current_step"] = 5
+            response = content[st.session_state.state["language"]]["rewrite_prompt"]
     
     elif st.session_state.state["current_step"] == 5:
         is_valid, feedback = analyze_ats_format(user_input, st.session_state.state["language"])
