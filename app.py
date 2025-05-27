@@ -1,10 +1,7 @@
 import streamlit as st
-from transformers import pipeline
+import re
 
-# Initialize the model
-classifier = pipeline("zero-shot-classification", model="typeform/distilbert-base-uncased-mnli")
-
-# State management using Streamlit's session state
+# Initialize session state
 if "state" not in st.session_state:
     st.session_state.state = {
         "language": None,
@@ -29,7 +26,7 @@ content = {
         "rewrite_prompt": "Great! Now rewrite that experience following the ATS format (Action Verb + Task Description + Quantification):",
         "feedback": {
             "good": "Excellent! You've nailed the ATS format. Let's try another one to reinforce your learning.",
-            "needs_work": "Not quite there. Your response should include a strong action verb, a clear task description, and quantification (e.g., numbers or percentages). Here's a suggestion based on your input: try starting with an action like 'Managed' or 'Developed' and add a metric like 'by 20%'. Please try again."
+            "needs_work": "Not quite there. Your response should include a strong action verb, a clear task description, and quantification (e.g., numbers or percentages). Here's a suggestion: try starting with an action like 'Managed' or 'Developed' and add a metric like 'by 20%'. Please try again."
         },
         "continue_prompt": "Would you like to try another one?",
         "farewell": "You're doing great! With 2-3 more practice sessions, you'll master ATS-friendly resume writing. Goodbye and good luck with your job search!",
@@ -48,7 +45,7 @@ content = {
         "rewrite_prompt": "Bagus! Sekarang tulis ulang pengalaman itu dengan mengikuti format ATS (Kata Kerja Aksi + Deskripsi Tugas + Kuantifikasi):",
         "feedback": {
             "good": "Luar biasa! Anda telah menguasai format ATS. Mari mencoba yang lain untuk memperkuat pembelajaran Anda.",
-            "needs_work": "Belum cukup. Respons Anda harus mencakup kata kerja aksi yang kuat, deskripsi tugas yang jelas, dan kuantifikasi (misalnya, angka atau persentase). Berikut saran berdasarkan input Anda: coba mulai dengan aksi seperti 'Mengelola' atau 'Mengembangkan' dan tambahkan metrik seperti 'sebesar 20%'. Silakan coba lagi."
+            "needs_work": "Belum cukup. Respons Anda harus mencakup kata kerja aksi yang kuat, deskripsi tugas yang jelas, dan kuantifikasi (misalnya, angka atau persentase). Berikut saran: coba mulai dengan aksi seperti 'Mengelola' atau 'Mengembangkan' dan tambahkan metrik seperti 'sebesar 20%'. Silakan coba lagi."
         },
         "continue_prompt": "Apakah Anda ingin mencoba yang lain?",
         "farewell": "Anda melakukannya dengan baik! Dengan 2-3 sesi latihan lagi, Anda akan menguasai penulisan resume yang ramah ATS. Selamat tinggal dan semoga sukses dengan pencarian kerja Anda!",
@@ -56,18 +53,21 @@ content = {
     }
 }
 
-# Analytical check using the model
+# Rule-based ATS format check
 def analyze_ats_format(text, language):
     if not text or len(text) < 10:
         return False, content[language]["feedback"]["needs_work"]
     
-    labels = ["has_action_verb", "has_task_description", "has_quantification"]
-    result = classifier(text, labels)
+    # Check for action verb (starts with a strong verb)
+    action_verbs = ["managed", "developed", "implemented", "led", "designed", "improved", "analyzed"]
+    has_action_verb = any(text.lower().startswith(verb) for verb in action_verbs)
     
-    scores = result['scores']
-    has_action_verb = scores[labels.index("has_action_verb")] > 0.5
-    has_task_description = scores[labels.index("has_task_description")] > 0.5
-    has_quantification = scores[labels.index("has_quantification")] > 0.5
+    # Check for task description (at least 5 words after the verb)
+    words = text.split()
+    has_task_description = len(words) > 5
+    
+    # Check for quantification (contains a number or percentage)
+    has_quantification = bool(re.search(r'\d+|\bpercent\b|\b%\b', text.lower()))
     
     if has_action_verb and has_task_description and has_quantification:
         return True, content[language]["feedback"]["good"]
